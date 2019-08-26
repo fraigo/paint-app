@@ -9,10 +9,19 @@ var COLORBAR = 50;
 var TOOLBAR=80;
 var WIDTH=1024;
 var HEIGHT=768;
+var isPlaying = false;
 
-var cols=["0","c","f"];
+if (document.body.clientHeight && document.body.clientWidth){
+    WIDTH = document.body.clientWidth;
+    HEIGHT = document.body.clientHeight ;
+    console.log("resize to",WIDTH,HEIGHT)
+}
+canvas.setAttribute("width",WIDTH);
+canvas.setAttribute("height",HEIGHT);
+
+var cols=["2","a","f"];
 var ncol=cols.length*cols.length*cols.length;
-var dx=1024/ncol;
+var dx=WIDTH/ncol;
 var images = 0;
 function loadImages(){
     images++;
@@ -73,20 +82,20 @@ var tools=[
 
 
 document.addEventListener("mousedown",function(ev){
-    if (ev.button==0){
+    if (ev.button==0 && !isPlaying){
         pointerStart(ev.clientX,ev.clientY);
     }
 }, false);
 
 document.addEventListener("mousemove",function(ev){
-    if (x0 == -1){
+    if (x0 == -1 || isPlaying){
         return;
     }
     pointerMove(ev.clientX,ev.clientY);
 }, false);
 
 document.addEventListener("mouseup",function(ev){
-    if (x0 == -1){
+    if (x0 == -1 || isPlaying){
         return;
     }
     pointerEnd(ev.clientX,ev.clientY);
@@ -94,18 +103,21 @@ document.addEventListener("mouseup",function(ev){
 }, false);
 
 document.addEventListener("touchstart",function(ev){
+    if (isPlaying){
+        return false;
+    }
     pointerStart(ev.touches[0].clientX,ev.touches[0].clientY);
 }, false);
 
 document.addEventListener("touchmove",function(ev){
-    if (x0 == -1){
+    if (x0 == -1 || isPlaying){
         return;
     }
     pointerMove(ev.touches[0].clientX,ev.touches[0].clientY);
 }, false);
 
 document.addEventListener("touchend",function(ev){
-    if (x0 == -1){
+    if (x0 == -1 || isPlaying){
         return;
     }
     pointerEnd(ev.changedTouches[0].clientX,ev.changedTouches[0].clientY);
@@ -339,12 +351,13 @@ function reDraw(ev,dt){
         ev.preventDefault();
         ev.stopPropagation();    
     }
+    isPlaying = true;
     if (typeof(dt)=="undefined"){
         dt = 0;
     }
     var dlog=JSON.parse(JSON.stringify(log));
     clearWindow();
-    var t=0;
+    var t=100;
     for(var index in dlog){
         var log1=dlog[index];
         for(var index1 in log1){
@@ -354,10 +367,14 @@ function reDraw(ev,dt){
             setTimeout(window[func],t,p1,p2);
             t+=dt;
         }
+        if (!isPlaying){
+            break;
+        }
     }
     t+=100;
     setTimeout(function(){ 
         log=dlog;
+        isPlaying = false;
         drawBar();
     } ,t);
 }
