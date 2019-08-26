@@ -10,6 +10,7 @@ var TOOLBAR=80;
 var WIDTH=1024;
 var HEIGHT=768;
 var isPlaying = false;
+var stamp=null;
 
 if (document.body.clientHeight && document.body.clientWidth){
     WIDTH = document.body.clientWidth;
@@ -26,7 +27,7 @@ var images = 0;
 function loadImages(){
     images++;
     console.log("Images",images);
-    if (images==3){
+    if (images==4){
         clearWindow();
     }
 }
@@ -40,6 +41,9 @@ undoIcon.onload=loadImages;
 var playIcon = new Image();
 playIcon.src="img/play.png";
 playIcon.onload=loadImages;
+var splatIcon = new Image();
+splatIcon.src="img/splat.png";
+splatIcon.onload=loadImages;
 
 var tools=[
     {
@@ -51,6 +55,11 @@ var tools=[
         image: undoIcon,
         height: 60,
         onclick: unDo
+    },
+    {
+        image: splatIcon,
+        height: 60,
+        onclick: function(){ setStamp(splat) }
     },
     {
         circle: 4, 
@@ -149,11 +158,15 @@ function pointerStart(x,y){
     if (tx>WIDTH-TOOLBAR){
         for(var i=0;i<tools.length;i++){
             var tool=tools[i];
-            if (tool.x0<=ty && tool.x0+tool.height>ty){
+            if (tool.x0<=ty && tool.x0+tool.currentHeight>ty){
                 tool.onclick();
                 break;
             }
         }
+        return;
+    }
+    if (stamp !=null){
+        stamp(tx,ty);
         return;
     }
     x0 = tx;
@@ -187,6 +200,8 @@ function pointerMove(x,y){
 
 function pointerEnd(x,y){
     console.log("end")
+    lastX = x0;
+    lastY = y0;
     x0 = -1;
     y0 = -1;
     endLine();
@@ -271,35 +286,43 @@ function drawBar(){
     }
     ctx.fillStyle = "#ddd";
     ctx.fillRect(WIDTH-TOOLBAR,0,TOOLBAR,HEIGHT-COLORBAR);
-    var h0 = 20;
+    var h0 = 10;
+    var tbHeight =0;
+    for(var i=0;i<tools.length;i++){
+        tbHeight+= tools[i].height;
+    }
+    var factor=(HEIGHT-COLORBAR-tools.length*10)/tbHeight;
+    console.log("factor",factor)
     for(var i=0;i<tools.length;i++){
         var tool=tools[i];
+        var fHeight = tool.height * factor;
         ctx.fillStyle = "#fff";
         if (radius == tool.circle){
             ctx.fillStyle = "#ffd";
         }
-        ctx.fillRect(WIDTH-TOOLBAR + 5,h0,TOOLBAR-10,tool.height);
+        ctx.fillRect(WIDTH-TOOLBAR + 5,h0,TOOLBAR-10,fHeight);
         tool.x0 = h0;
         if (tool.circle){
             ctx.beginPath();
             ctx.fillStyle = "#444";
-            ctx.arc(WIDTH-TOOLBAR/2, h0+ tool.height/2, tool.circle+3, 0, 2 * Math.PI, false);
+            ctx.arc(WIDTH-TOOLBAR/2, h0 + fHeight/2, tool.circle*factor+3, 0, 2 * Math.PI, false);
             ctx.fill();
             ctx.beginPath();
             ctx.fillStyle = color;
-            ctx.arc(WIDTH-TOOLBAR/2, h0+ tool.height/2, tool.circle, 0, 2 * Math.PI, false);
+            ctx.arc(WIDTH-TOOLBAR/2, h0 + fHeight/2, tool.circle*factor, 0, 2 * Math.PI, false);
             ctx.fill();
         }
         if (tool.text){
             ctx.fillStyle = "#222";
             ctx.textAlign = "center";
             ctx.font = "20px Arial";
-            ctx.fillText(tool.text, WIDTH-TOOLBAR/2, h0+ tool.height/2);
+            ctx.fillText(tool.text, WIDTH-TOOLBAR/2, h0+ fHeight/2);
         }
         if(tool.image){
-            ctx.drawImage(tool.image,WIDTH-TOOLBAR+5+(TOOLBAR-tool.height)/2, h0+5, tool.height-10, tool.height-10);
+            ctx.drawImage(tool.image,WIDTH-TOOLBAR+5+(TOOLBAR-fHeight)/2, h0+5, fHeight-10, fHeight-10);
         }
-        h0+=tool.height+5;
+        tool.currentHeight = fHeight;
+        h0+=fHeight+5;
     }
 
 }
@@ -327,8 +350,16 @@ function logger(msg){
     ctx.fillText(msg, 50, 15);
 }
 
+function setStamp(obj){
+    stamp = obj;
+    currentLog=[];
+    currentLog.push(['setStamp',obj]);
+    log.push(currentLog);
+}
+
 function setRadius(ev,rad){
     radius=rad;
+    stamp = null;
     if (ev){
         ev.preventDefault();
         ev.stopPropagation();    
@@ -344,6 +375,23 @@ function unDo(ev){
     console.log(last);
     reDraw(ev,0);
 }
+
+function splat(x,y){
+    var c=document.createElement("canvas");
+    c.setAttribute("width",splatIcon.width);
+    c.setAttribute("height",splatIcon.height);
+    document.body.appendChild(c);
+    ctx2 = c.getContext("2d");
+    ctx2.fillStyle = color;
+    ctx2.fillRect(0, 0, c.width, c.height);
+    ctx2.globalCompositeOperation = "destination-in";
+    ctx2.drawImage(splatIcon, 0,0);
+    ctx.drawImage(c,x-splatIcon.width/2,y-splatIcon.height/2);
+    currentLog=[];
+    currentLog.push(['splat',x,y]);
+    log.push(currentLog);
+}
+
 
 
 function reDraw(ev,dt){
