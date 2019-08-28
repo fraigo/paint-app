@@ -10,85 +10,116 @@ var TOOLBAR=80;
 var WIDTH=1024;
 var HEIGHT=768;
 var isPlaying = false;
-var stamp=null;
+var stamp='circle';
 
-if (document.body.clientHeight && document.body.clientWidth){
-    WIDTH = document.body.clientWidth;
-    HEIGHT = document.body.clientHeight ;
-    console.log("resize to",WIDTH,HEIGHT)
+var stamps=[
+    'circle',
+    'square',
+    'splat',
+    'triangle',
+    'star'
+]
+var continuous= {
+    'circle' : true,
+    'square' : true,
 }
-canvas.setAttribute("width",WIDTH);
-canvas.setAttribute("height",HEIGHT);
+
 
 var cols=["2","a","f"];
 var ncol=cols.length*cols.length*cols.length;
 var dx=WIDTH/ncol;
-var images = 0;
+var imageCount = 0;
+var stampTool = null;
+
+var imageFiles=[
+    "trash",
+    "undo",
+    "play",
+    "splat",
+    "square",
+    "circle",
+    "triangle",
+    "star"
+]
+var images={
+
+}
 function loadImages(){
-    images++;
+    imageCount++;
     console.log("Images",images);
-    if (images==4){
+    if (imageCount==imageFiles.length){
         clearWindow();
     }
 }
 
-var trashIcon = new Image();
-trashIcon.src="img/trash.png";
-trashIcon.onload=loadImages;
-var undoIcon = new Image();
-undoIcon.src="img/undo.png";
-undoIcon.onload=loadImages;
-var playIcon = new Image();
-playIcon.src="img/play.png";
-playIcon.onload=loadImages;
-var splatIcon = new Image();
-splatIcon.src="img/splat.png";
-splatIcon.onload=loadImages;
+for (var idx in imageFiles){
+    var img = new Image();
+    img.src="img/"+imageFiles[idx]+".png";
+    img.onload=loadImages;
+    images[imageFiles[idx]]=img;
+}
 
 var tools=[
     {
-        image: trashIcon,
+        image: 'trash',
         height: 60,
-        onclick: clearWindow
+        onclick: clearWindow,
+        hint: 'Clear',
     },
     {
-        image: undoIcon,
+        image: 'undo',
         height: 60,
-        onclick: unDo
+        onclick: unDo,
+        hint: 'Undo'
     },
     {
-        image: splatIcon,
+        image: stamp,
         height: 60,
-        onclick: function(){ setStamp(splat) }
+        onclick: function(){ 
+            var next=(stamps.indexOf(stamp)+1) % stamps.length; 
+            console.log('current',stamp, 'next',stamps[next])
+            this.image = stamps[next]
+            setStamp(stamps[next]);
+        },
+        hint: 'Stamp'
     },
     {
-        circle: 4, 
+        radius: 4, 
         height: 60,
-        onclick: function(){ setRadius(null,4) }
+        onclick: function(){ setRadius(null,this.radius) },
+        background: '#ddd'
     },
     {
-        circle: 8, 
+        radius: 8, 
         height: 60,
-        onclick: function(){ setRadius(null,8) }
+        onclick: function(){ setRadius(null,this.radius) },
+        background: '#ddd'
     },
     {
-        circle: 16, 
+        radius: 16, 
         height: 60,
-        onclick: function(){ setRadius(null,16) }
+        onclick: function(){ setRadius(null,this.radius) },
+        background: '#ddd'
     },
     {
-        circle: 22, 
+        radius: 32, 
         height: 60,
-        onclick: function(){ setRadius(null,22) }
+        onclick: function(){ setRadius(null,this.radius) },
+        background: '#ddd'
     },
     {
-        image: playIcon,
+        image: 'play',
         height: 60,
-        onclick: function(){ reDraw(null,10) }
+        onclick: function(){ reDraw(null,10) },
+        hint: 'Redo wrawing'
     },
-
 ]
 
+for(var i=0;i<tools.length;i++){
+    if (tools[i].hint=='Stamp'){
+        stampTool = tools[i]
+    }
+}
 
 document.addEventListener("mousedown",function(ev){
     if (ev.button==0 && !isPlaying){
@@ -165,13 +196,13 @@ function pointerStart(x,y){
         }
         return;
     }
-    if (stamp !=null){
-        stamp(tx,ty);
-        return;
-    }
     x0 = tx;
     y0 = ty;
-    drawPoint(x0, y0);
+    if (stamp !='circle'){
+        drawStamp(tx,ty);
+    }else{
+        drawPoint(x0, y0);
+    }
 
 }
 
@@ -188,7 +219,13 @@ function pointerMove(x,y){
     if (x0>0 && y0>0){
         var x1 = translatedX(x)
         var y1 = translatedY(y)
-        lineToPoint(x1, y1);
+        if (stamp !='circle' ){
+            if (continuous[stamp]){
+                drawStamp(x1,y1);
+            }
+        }else{
+            lineToPoint(x1, y1);
+        }
         if (y1>HEIGHT-COLORBAR){
             drawBar();
         }
@@ -291,26 +328,20 @@ function drawBar(){
     for(var i=0;i<tools.length;i++){
         tbHeight+= tools[i].height;
     }
-    var factor=(HEIGHT-COLORBAR-tools.length*10)/tbHeight;
-    console.log("factor",factor)
+    var factor=Math.min(1,(HEIGHT-COLORBAR-tools.length*10)/tbHeight);
     for(var i=0;i<tools.length;i++){
         var tool=tools[i];
         var fHeight = tool.height * factor;
-        ctx.fillStyle = "#fff";
-        if (radius == tool.circle){
-            ctx.fillStyle = "#ffd";
+        ctx.fillStyle = tool.background ? tool.background : "#fff";
+        if (radius == tool.radius){
+            ctx.fillStyle = "#ffa";
         }
         ctx.fillRect(WIDTH-TOOLBAR + 5,h0,TOOLBAR-10,fHeight);
         tool.x0 = h0;
-        if (tool.circle){
-            ctx.beginPath();
-            ctx.fillStyle = "#444";
-            ctx.arc(WIDTH-TOOLBAR/2, h0 + fHeight/2, tool.circle*factor+3, 0, 2 * Math.PI, false);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.fillStyle = color;
-            ctx.arc(WIDTH-TOOLBAR/2, h0 + fHeight/2, tool.circle*factor, 0, 2 * Math.PI, false);
-            ctx.fill();
+        if (tool.radius){
+            var cv = getStamp(stamp);
+            ctx.drawImage(cv, WIDTH-TOOLBAR/2-tool.radius*factor, h0 + fHeight/2-tool.radius*factor , tool.radius*2*factor, tool.radius*2*factor);
+            document.body.removeChild(cv);
         }
         if (tool.text){
             ctx.fillStyle = "#222";
@@ -319,7 +350,7 @@ function drawBar(){
             ctx.fillText(tool.text, WIDTH-TOOLBAR/2, h0+ fHeight/2);
         }
         if(tool.image){
-            ctx.drawImage(tool.image,WIDTH-TOOLBAR+5+(TOOLBAR-fHeight)/2, h0+5, fHeight-10, fHeight-10);
+            ctx.drawImage(images[tool.image],WIDTH-TOOLBAR+5+(TOOLBAR-fHeight)/2, h0+5, fHeight-10, fHeight-10);
         }
         tool.currentHeight = fHeight;
         h0+=fHeight+5;
@@ -330,6 +361,8 @@ function drawBar(){
 function clearWindow(ev){
     console.log('clear');
     setColor("#000");
+    setStamp('circle');
+    setRadius(null,8);
     log=[];
     currentLog=[];
     ctx.fillStyle = "#eee";
@@ -350,16 +383,20 @@ function logger(msg){
     ctx.fillText(msg, 50, 15);
 }
 
-function setStamp(obj){
-    stamp = obj;
+function setStamp(name){
+    stamp = name;
     currentLog=[];
-    currentLog.push(['setStamp',obj]);
+    currentLog.push(['setStamp',name]);
     log.push(currentLog);
+    console.log("Stamp",name);
+    if (stampTool){
+        stampTool.image=name;
+    }
+    drawBar();
 }
 
 function setRadius(ev,rad){
     radius=rad;
-    stamp = null;
     if (ev){
         ev.preventDefault();
         ev.stopPropagation();    
@@ -367,6 +404,7 @@ function setRadius(ev,rad){
     currentLog=[];
     currentLog.push(['setRadius',null,rad]);
     log.push(currentLog);
+    console.log("Radius", rad);
     drawBar();
 }
 
@@ -376,19 +414,26 @@ function unDo(ev){
     reDraw(ev,0);
 }
 
-function splat(x,y){
+function getStamp(stamp){
     var c=document.createElement("canvas");
-    c.setAttribute("width",splatIcon.width);
-    c.setAttribute("height",splatIcon.height);
+    var img=images[stamp]
+    c.setAttribute("width",img.width);
+    c.setAttribute("height",img.height);
     document.body.appendChild(c);
     ctx2 = c.getContext("2d");
     ctx2.fillStyle = color;
     ctx2.fillRect(0, 0, c.width, c.height);
     ctx2.globalCompositeOperation = "destination-in";
-    ctx2.drawImage(splatIcon, 0,0);
-    ctx.drawImage(c,x-splatIcon.width/2,y-splatIcon.height/2);
+    ctx2.drawImage(img, 0,0);
+    return c;
+}
+
+function drawStamp(x,y){
+    var c=getStamp(stamp);
+    ctx.drawImage(c,x-radius*2,y-radius*2,radius*4,radius*4);
+    document.body.removeChild(c);
     currentLog=[];
-    currentLog.push(['splat',x,y]);
+    currentLog.push(['drawStamp',x,y]);
     log.push(currentLog);
 }
 
@@ -408,6 +453,9 @@ function reDraw(ev,dt){
     var t=100;
     for(var index in dlog){
         var log1=dlog[index];
+        if (dt>0){
+            t+=10;
+        }
         for(var index1 in log1){
             var func=log1[index1][0];
             var p1=log1[index1][1];
@@ -427,14 +475,44 @@ function reDraw(ev,dt){
     } ,t);
 }
 
+function fillRoundedRect(x, y, w, h, r){
+    this.beginPath();
+    this.moveTo(x+r, y);
+    this.arcTo(x+w, y,   x+w, y+h, r);
+    this.arcTo(x+w, y+h, x,   y+h, r);
+    this.arcTo(x,   y+h, x,   y,   r);
+    this.arcTo(x,   y,   x+w, y,   r);
+    ctx.fill();
+}
+
+
+function resizeCanvas(){
+    if (document.body.clientHeight && document.body.clientWidth){
+        WIDTH = document.body.clientWidth;
+        HEIGHT = document.body.clientHeight ;
+        dx=WIDTH/ncol;
+        console.log("resize to",WIDTH,HEIGHT)
+    }
+    canvas.setAttribute("width",WIDTH);
+    canvas.setAttribute("height",HEIGHT);    
+}
+
 window.onerror=function(e){
     alert(e)
 }
 
+resizeCanvas();
+
 document.addEventListener('deviceready',function(){
     console.log("deviceready")
     if (window.screen && window.screen.orientation){
+        resizeCanvas();
         console.log("orientation", window.screen.orientation)
         window.screen.orientation.lock('landscape');
+        alert((window.screen.orientation.type));
+        setTimeout(function(){
+            resizeCanvas();
+            clearWindow();
+        },1000);
     }
 },false)
