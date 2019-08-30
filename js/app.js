@@ -17,6 +17,9 @@ var stamps=[
     'square',
     'splat',
     'triangle',
+    'triangle2',
+    'heart',
+    'diamond',
     'star'
 ]
 var continuous= {
@@ -25,7 +28,7 @@ var continuous= {
 }
 
 
-var cols=["2","a","f"];
+var cols=["0","a","f"];
 var ncol=cols.length*cols.length*cols.length;
 var dx=WIDTH/ncol;
 var imageCount = 0;
@@ -35,10 +38,14 @@ var imageFiles=[
     "trash",
     "undo",
     "play",
+    "fill",
     "splat",
     "square",
     "circle",
     "triangle",
+    "triangle2",
+    'heart',
+    'diamond',
     "star"
 ]
 var images={
@@ -46,7 +53,6 @@ var images={
 }
 function loadImages(){
     imageCount++;
-    console.log("Images",images);
     if (imageCount==imageFiles.length){
         clearWindow();
     }
@@ -108,11 +114,17 @@ var tools=[
         background: '#ddd'
     },
     {
+        image: 'fill',
+        height: 60,
+        onclick: fillCanvas,
+        hint: 'Fill'
+    },
+    {
         image: 'play',
         height: 60,
         onclick: function(){ reDraw(null,10) },
         hint: 'Redo wrawing'
-    },
+    }
 ]
 
 for(var i=0;i<tools.length;i++){
@@ -122,12 +134,20 @@ for(var i=0;i<tools.length;i++){
 }
 
 document.addEventListener("mousedown",function(ev){
+    if (ev){
+        ev.preventDefault();
+        ev.stopPropagation();    
+    }
     if (ev.button==0 && !isPlaying){
         pointerStart(ev.clientX,ev.clientY);
     }
 }, false);
 
 document.addEventListener("mousemove",function(ev){
+    if (ev){
+        ev.preventDefault();
+        ev.stopPropagation();    
+    }
     if (x0 == -1 || isPlaying){
         return;
     }
@@ -135,6 +155,10 @@ document.addEventListener("mousemove",function(ev){
 }, false);
 
 document.addEventListener("mouseup",function(ev){
+    if (ev){
+        ev.preventDefault();
+        ev.stopPropagation();    
+    }
     if (x0 == -1 || isPlaying){
         return;
     }
@@ -143,6 +167,10 @@ document.addEventListener("mouseup",function(ev){
 }, false);
 
 document.addEventListener("touchstart",function(ev){
+    if (ev){
+        ev.preventDefault();
+        ev.stopPropagation();    
+    }
     if (isPlaying){
         return false;
     }
@@ -150,6 +178,10 @@ document.addEventListener("touchstart",function(ev){
 }, false);
 
 document.addEventListener("touchmove",function(ev){
+    if (ev){
+        ev.preventDefault();
+        ev.stopPropagation();    
+    }
     if (x0 == -1 || isPlaying){
         return;
     }
@@ -157,6 +189,10 @@ document.addEventListener("touchmove",function(ev){
 }, false);
 
 document.addEventListener("touchend",function(ev){
+    if (ev){
+        ev.preventDefault();
+        ev.stopPropagation();    
+    }
     if (x0 == -1 || isPlaying){
         return;
     }
@@ -236,7 +272,6 @@ function pointerMove(x,y){
 }
 
 function pointerEnd(x,y){
-    console.log("end")
     lastX = x0;
     lastY = y0;
     x0 = -1;
@@ -485,6 +520,20 @@ function fillRoundedRect(x, y, w, h, r){
     ctx.fill();
 }
 
+function fillCanvas(){
+    var color1 = color;
+    clearWindow();
+    setColor(color1);
+    fillColor();
+}
+
+function fillColor(){
+    ctx.fillStyle = color;
+    ctx.fillRect(0,0,WIDTH-TOOLBAR,HEIGHT-COLORBAR);
+    currentLog=[];
+    currentLog.push(['fillColor',null]);
+    log.push(currentLog);
+}
 
 function resizeCanvas(){
     if (document.body.clientHeight && document.body.clientWidth){
@@ -502,17 +551,26 @@ window.onerror=function(e){
 }
 
 resizeCanvas();
+if (window.cordova){
+    canvas.style.display='none';
+}
 
 document.addEventListener('deviceready',function(){
     console.log("deviceready")
     if (window.screen && window.screen.orientation){
-        resizeCanvas();
-        console.log("orientation", window.screen.orientation)
-        window.screen.orientation.lock('landscape');
-        alert((window.screen.orientation.type));
-        setTimeout(function(){
+        var orientation=(window.screen.orientation.type).split("-")[0];
+        if (orientation!="landscape"){
+            window.screen.orientation.lock('landscape');
+            setTimeout(function(){
+                canvas.style.display='';
+                resizeCanvas();
+                clearWindow();
+            },1000);    
+        }
+        else {
+            canvas.style.display='';
             resizeCanvas();
             clearWindow();
-        },1000);
+        }
     }
 },false)

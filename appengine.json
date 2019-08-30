@@ -1,0 +1,6 @@
+{
+ "name" : "PaintApp",
+ "id" : "io.github.fraigo.paintapp",
+ "icon" : "icon.png",
+ "version" : "1.0.0" 
+}
