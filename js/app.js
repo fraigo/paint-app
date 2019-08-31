@@ -10,29 +10,6 @@ var TOOLBAR=80;
 var WIDTH=1024;
 var HEIGHT=768;
 var isPlaying = false;
-var stamp='circle';
-
-var stamps=[
-    'circle',
-    'square',
-    'splat',
-    'triangle',
-    'triangle2',
-    'heart',
-    'diamond',
-    'star'
-]
-var continuous= {
-    'circle' : true,
-    'square' : true,
-}
-
-
-var cols=["0","a","f"];
-var ncol=cols.length*cols.length*cols.length;
-var dx=WIDTH/ncol;
-var imageCount = 0;
-var stampTool = null;
 
 var imageFiles=[
     "trash",
@@ -48,9 +25,64 @@ var imageFiles=[
     'diamond',
     "star"
 ]
+var stamps=[
+    'circle',
+    'square',
+    'splat',
+    'triangle',
+    'triangle2',
+    'heart',
+    'diamond',
+    'star'
+]
+var continuous= {
+    'circle' : true,
+    'square' : true,
+}
+var stamp='circle';
+
+
+
+var colorList=[
+    "000",
+    "888",
+    "ccc",
+    "ddd",
+    "800",
+    "c00",
+    "e48",
+    "fcd",
+    "644",
+    "930",
+    "f60",
+    "f90",
+    "fc0",
+    "ff4",
+    "60c",
+    "90f",
+    "006",
+    "008",
+    "44c",
+    "bef",
+    "040",
+    "080",
+    "0c0",
+    "fff"
+];
+var ncol=colorList.length;
+var dx=WIDTH/ncol;
+var imageCount = 0;
+var stampTool = null;
+var radius=8;
+var color="#000";
+var log=[];
+var currentLog=[];
+
+
 var images={
 
 }
+
 function loadImages(){
     imageCount++;
     if (imageCount==imageFiles.length){
@@ -135,6 +167,7 @@ for(var i=0;i<tools.length;i++){
 
 document.addEventListener("mousedown",function(ev){
     if (ev){
+        console.log(ev);
         ev.preventDefault();
         ev.stopPropagation();    
     }
@@ -168,6 +201,7 @@ document.addEventListener("mouseup",function(ev){
 
 document.addEventListener("touchstart",function(ev){
     if (ev){
+        console.log(ev);
         ev.preventDefault();
         ev.stopPropagation();    
     }
@@ -279,10 +313,6 @@ function pointerEnd(x,y){
     endLine();
 }
 
-var radius=8;
-var color="#000";
-var log=[];
-var currentLog=[];
 
 function drawPoint(x,y){
     lx = x;
@@ -329,32 +359,28 @@ function endLine(){
 function drawBar(){
     colors = [];
     var c =0;
-    for(var r=0;r<cols.length;r++){
-        for(var g=0;g<cols.length;g++){
-            for(var b=0;b<cols.length;b++){                
-                var col = "#"+(cols[r]+cols[g]+cols[b]);
-                var px = c*dx;
-                ctx.fillStyle = col;
-                ctx.fillRect(px,HEIGHT-COLORBAR,dx,COLORBAR);
-                colors.push(col);    
-                if (col==color){
-                    ctx.beginPath();
-                    ctx.fillStyle = "#ddd";
-                    ctx.arc(px+(dx/2), HEIGHT-(COLORBAR/2), dx/2, 0, 2 * Math.PI, false);
-                    ctx.fill();
-                    ctx.beginPath();
-                    ctx.beginPath();
-                    ctx.fillStyle = "#fff";
-                    ctx.arc(px+(dx/2), HEIGHT-(COLORBAR/2), dx/2.5, 0, 2 * Math.PI, false);
-                    ctx.fill();
-                    ctx.beginPath();
-                    ctx.fillStyle = color;
-                    ctx.arc(px+(dx/2), HEIGHT-(COLORBAR/2), dx/3, 0, 2 * Math.PI, false);
-                    ctx.fill();
-                }
-                c++;
-            }
+    for(var b=0;b<colorList.length;b++){                
+        var col = "#"+(colorList[b]);
+        var px = c*dx;
+        ctx.fillStyle = col;
+        ctx.fillRect(px,HEIGHT-COLORBAR,dx,COLORBAR);
+        colors.push(col);    
+        if (col==color){
+            ctx.beginPath();
+            ctx.fillStyle = "#ddd";
+            ctx.arc(px+(dx/2), HEIGHT-(COLORBAR/2), dx/2, 0, 2 * Math.PI, false);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.beginPath();
+            ctx.fillStyle = "#fff";
+            ctx.arc(px+(dx/2), HEIGHT-(COLORBAR/2), dx/2.5, 0, 2 * Math.PI, false);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.fillStyle = color;
+            ctx.arc(px+(dx/2), HEIGHT-(COLORBAR/2), dx/3, 0, 2 * Math.PI, false);
+            ctx.fill();
         }
+        c++;
     }
     ctx.fillStyle = "#ddd";
     ctx.fillRect(WIDTH-TOOLBAR,0,TOOLBAR,HEIGHT-COLORBAR);
@@ -369,9 +395,11 @@ function drawBar(){
         var fHeight = tool.height * factor;
         ctx.fillStyle = tool.background ? tool.background : "#fff";
         if (radius == tool.radius){
-            ctx.fillStyle = "#ffa";
+            ctx.fillStyle = "#ccc";
+            ctx.fillRect(WIDTH-TOOLBAR + 3,h0,TOOLBAR-6,fHeight);
+            ctx.fillStyle = "#eee";
         }
-        ctx.fillRect(WIDTH-TOOLBAR + 5,h0,TOOLBAR-10,fHeight);
+        ctx.fillRect(WIDTH-TOOLBAR + 5,h0+2,TOOLBAR-10,fHeight-4);
         tool.x0 = h0;
         if (tool.radius){
             var cv = getStamp(stamp);
