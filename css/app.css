@@ -4,7 +4,7 @@ body{
     border:0px;
     text-align: center;
     overflow: hidden;
-    background-color: #000;
+    background-color: #eee;
 }
 
 #canvas-container{

@@ -1,4 +1,5 @@
 {
+ "path" : ".",
  "name" : "PaintApp",
  "id" : "io.github.fraigo.paintapp",
  "icon" : "icon.png",

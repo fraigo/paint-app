@@ -15,6 +15,7 @@ var imageFiles=[
     "trash",
     "undo",
     "play",
+    "camera",
     "fill",
     "splat",
     "square",
@@ -115,7 +116,6 @@ var tools=[
         height: 60,
         onclick: function(){ 
             var next=(stamps.indexOf(stamp)+1) % stamps.length; 
-            console.log('current',stamp, 'next',stamps[next])
             this.image = stamps[next]
             setStamp(stamps[next]);
         },
@@ -154,8 +154,14 @@ var tools=[
     {
         image: 'play',
         height: 60,
-        onclick: function(){ reDraw(null,10) },
+        onclick: function(){ reDraw(10) },
         hint: 'Redo wrawing'
+    },
+    {
+        image: 'camera',
+        height: 60,
+        onclick: function(){ getImage() },
+        hint: 'Save drawing'
     }
 ]
 
@@ -167,7 +173,6 @@ for(var i=0;i<tools.length;i++){
 
 document.addEventListener("mousedown",function(ev){
     if (ev){
-        console.log(ev);
         ev.preventDefault();
         ev.stopPropagation();    
     }
@@ -201,7 +206,6 @@ document.addEventListener("mouseup",function(ev){
 
 document.addEventListener("touchstart",function(ev){
     if (ev){
-        console.log(ev);
         ev.preventDefault();
         ev.stopPropagation();    
     }
@@ -266,6 +270,10 @@ function pointerStart(x,y){
         }
         return;
     }
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, WIDTH-TOOLBAR, HEIGHT-COLORBAR);
+    ctx.clip();
     x0 = tx;
     y0 = ty;
     if (stamp !='circle'){
@@ -277,7 +285,7 @@ function pointerStart(x,y){
 }
 
 function setColor(col){
-    console.log(col);
+    console.log("Color",col);
     color = col;
     currentLog=[];
     currentLog.push(['setColor',col]);
@@ -311,6 +319,15 @@ function pointerEnd(x,y){
     x0 = -1;
     y0 = -1;
     endLine();
+    ctx.restore();
+    restoreClip();
+}
+
+function restoreClip(){
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0,0,WIDTH,HEIGHT);
+    ctx.restore();
 }
 
 
@@ -359,6 +376,10 @@ function endLine(){
 function drawBar(){
     colors = [];
     var c =0;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0,HEIGHT-COLORBAR,WIDTH,COLORBAR);
+    ctx.clip();
     for(var b=0;b<colorList.length;b++){                
         var col = "#"+(colorList[b]);
         var px = c*dx;
@@ -382,8 +403,13 @@ function drawBar(){
         }
         c++;
     }
+    ctx.restore();
+    restoreClip();
+
+    ctx.save();
     ctx.fillStyle = "#ddd";
     ctx.fillRect(WIDTH-TOOLBAR,0,TOOLBAR,HEIGHT-COLORBAR);
+    ctx.clip();
     var h0 = 10;
     var tbHeight =0;
     for(var i=0;i<tools.length;i++){
@@ -418,10 +444,26 @@ function drawBar(){
         tool.currentHeight = fHeight;
         h0+=fHeight+5;
     }
-
+    ctx.restore();
+    restoreClip();
 }
 
-function clearWindow(ev){
+function getImage(){
+    var new_canvas = document.createElement('canvas');
+    new_canvas.width = WIDTH-TOOLBAR;
+    new_canvas.height = HEIGHT-COLORBAR;
+    new_canvas.getContext('2d').drawImage(canvas, 0,0);
+    var dataUrl = new_canvas.toDataURL("image/png");
+    var lnk=document.createElement("a");
+    lnk.href=dataUrl;
+    lnk.download="image.png";
+    lnk.style.display='';
+    document.body.appendChild(lnk);
+    lnk.click();
+    setTimeout(function(){ document.body.removeChild(lnk)},1000);
+}
+
+function clearWindow(){
     console.log('clear');
     setColor("#000");
     setStamp('circle');
@@ -431,10 +473,6 @@ function clearWindow(ev){
     ctx.fillStyle = "#eee";
     ctx.fillRect(0,0,WIDTH,HEIGHT);
     drawBar();
-    if (ev){
-        ev.preventDefault();
-        ev.stopPropagation();    
-    }
 }
 
 function logger(msg){
@@ -471,10 +509,14 @@ function setRadius(ev,rad){
     drawBar();
 }
 
-function unDo(ev){
+function unDo(){
     var last=log.pop();
-    console.log(last);
-    reDraw(ev,0);
+    console.log("undo",last);
+    while (last && last[0][0]!='drawPoint'){
+        last=log.pop();
+        console.log("undo",last);
+    }
+    reDraw(0);
 }
 
 function getStamp(stamp){
@@ -502,18 +544,17 @@ function drawStamp(x,y){
 
 
 
-function reDraw(ev,dt){
-    if (ev){
-        ev.preventDefault();
-        ev.stopPropagation();    
-    }
+function reDraw(dt){
     isPlaying = true;
     if (typeof(dt)=="undefined"){
         dt = 0;
     }
     var dlog=JSON.parse(JSON.stringify(log));
     clearWindow();
-    var t=100;
+    var t=0;
+    if (dt>0){
+        t=100;
+    }
     for(var index in dlog){
         var log1=dlog[index];
         if (dt>0){
@@ -530,7 +571,9 @@ function reDraw(ev,dt){
             break;
         }
     }
-    t+=100;
+    if (dt>0){
+        t+=100;
+    }
     setTimeout(function(){ 
         log=dlog;
         isPlaying = false;
@@ -550,8 +593,10 @@ function fillRoundedRect(x, y, w, h, r){
 
 function fillCanvas(){
     var color1 = color;
+    var stamp1 = stamp;
     clearWindow();
     setColor(color1);
+    setStamp(stamp1);
     fillColor();
 }
 
@@ -574,13 +619,22 @@ function resizeCanvas(){
     canvas.setAttribute("height",HEIGHT);    
 }
 
+resizeCanvas();
+
+if (window.cordova){
+    canvas.style.display='none';
+}
+
 window.onerror=function(e){
     alert(e)
 }
 
-resizeCanvas();
-if (window.cordova){
-    canvas.style.display='none';
+window.onresize=function(ev){
+    clearTimeout(window.resizeProc);
+    window.resizeProc=setTimeout(function (){
+        resizeCanvas();
+        reDraw(0);    
+    },300);
 }
 
 document.addEventListener('deviceready',function(){
