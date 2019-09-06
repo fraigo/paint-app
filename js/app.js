@@ -1,5 +1,8 @@
 var canvas = document.getElementById("canvas");
 var ctx=canvas.getContext("2d");
+var canvas2 = document.getElementById("tools");
+var ctx2=canvas2.getContext("2d");
+
 var x0 = -1;
 var y0 = -1;
 var lx = 0;
@@ -71,7 +74,7 @@ var colorList=[
     "fff"
 ];
 var ncol=colorList.length;
-var dx=WIDTH/ncol;
+var dx=(WIDTH-TOOLBAR)/ncol;
 var imageCount = 0;
 var stampTool = null;
 var radius=8;
@@ -156,14 +159,18 @@ var tools=[
         height: 60,
         onclick: function(){ reDraw(10) },
         hint: 'Redo wrawing'
-    },
-    {
+    }
+]
+
+if (!window.cordova){
+    tools.push({
         image: 'camera',
         height: 60,
         onclick: function(){ getImage() },
         hint: 'Save drawing'
-    }
-]
+    })
+}
+
 
 for(var i=0;i<tools.length;i++){
     if (tools[i].hint=='Stamp'){
@@ -201,7 +208,6 @@ document.addEventListener("mouseup",function(ev){
         return;
     }
     pointerEnd(ev.clientX,ev.clientY);
-    drawBar();
 }, false);
 
 document.addEventListener("touchstart",function(ev){
@@ -235,7 +241,6 @@ document.addEventListener("touchend",function(ev){
         return;
     }
     pointerEnd(ev.changedTouches[0].clientX,ev.changedTouches[0].clientY);
-    drawBar();
 }, false);
 
 
@@ -255,11 +260,6 @@ function translatedY(y){
 function pointerStart(x,y){
     var tx = translatedX(x);
     var ty = translatedY(y)
-    if (ty>HEIGHT-COLORBAR){
-        var pos = Math.floor(tx / dx);
-        setColor(colors[pos]);
-        return;
-    }
     if (tx>WIDTH-TOOLBAR){
         for(var i=0;i<tools.length;i++){
             var tool=tools[i];
@@ -270,10 +270,11 @@ function pointerStart(x,y){
         }
         return;
     }
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(0, 0, WIDTH-TOOLBAR, HEIGHT-COLORBAR);
-    ctx.clip();
+    if (ty>HEIGHT-COLORBAR){
+        var pos = Math.floor(tx / dx);
+        setColor(colors[pos]);
+        return;
+    }
     x0 = tx;
     y0 = ty;
     if (stamp !='circle'){
@@ -304,12 +305,6 @@ function pointerMove(x,y){
         }else{
             lineToPoint(x1, y1);
         }
-        if (y1>HEIGHT-COLORBAR){
-            drawBar();
-        }
-        if (x1>WIDTH-TOOLBAR){
-            drawBar();
-        }
     }
 }
 
@@ -319,15 +314,6 @@ function pointerEnd(x,y){
     x0 = -1;
     y0 = -1;
     endLine();
-    ctx.restore();
-    restoreClip();
-}
-
-function restoreClip(){
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(0,0,WIDTH,HEIGHT);
-    ctx.restore();
 }
 
 
@@ -368,7 +354,9 @@ function lineToPoint(x,y){
 
 function endLine(){
     if (currentLog.length){
-        log.push(currentLog);
+        if (currentLog[0][0]=="drawPoint"){
+            log.push(currentLog);
+        }
     }
     currentLog=[];
 }
@@ -376,26 +364,28 @@ function endLine(){
 function drawBar(){
     colors = [];
     var c =0;
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(0,HEIGHT-COLORBAR,WIDTH,COLORBAR);
-    ctx.clip();
+    var ctx = canvas2.getContext("2d");
     for(var b=0;b<colorList.length;b++){                
         var col = "#"+(colorList[b]);
         var px = c*dx;
         ctx.fillStyle = col;
-        ctx.fillRect(px,HEIGHT-COLORBAR,dx,COLORBAR);
+        ctx.strokeStyle = "#ccc";
+        ctx.beginPath();
+        ctx.arc(px+(dx/2), HEIGHT-(COLORBAR/2), dx/2, 0, 2 * Math.PI, false);
+        ctx.stroke();
+        ctx.fill();
         colors.push(col);    
         if (col==color){
             ctx.beginPath();
             ctx.fillStyle = "#ddd";
             ctx.arc(px+(dx/2), HEIGHT-(COLORBAR/2), dx/2, 0, 2 * Math.PI, false);
             ctx.fill();
-            ctx.beginPath();
+
             ctx.beginPath();
             ctx.fillStyle = "#fff";
             ctx.arc(px+(dx/2), HEIGHT-(COLORBAR/2), dx/2.5, 0, 2 * Math.PI, false);
             ctx.fill();
+
             ctx.beginPath();
             ctx.fillStyle = color;
             ctx.arc(px+(dx/2), HEIGHT-(COLORBAR/2), dx/3, 0, 2 * Math.PI, false);
@@ -403,19 +393,15 @@ function drawBar(){
         }
         c++;
     }
-    ctx.restore();
-    restoreClip();
 
-    ctx.save();
     ctx.fillStyle = "#ddd";
-    ctx.fillRect(WIDTH-TOOLBAR,0,TOOLBAR,HEIGHT-COLORBAR);
-    ctx.clip();
+    ctx.fillRect(WIDTH-TOOLBAR,0,TOOLBAR,HEIGHT);
     var h0 = 10;
     var tbHeight =0;
     for(var i=0;i<tools.length;i++){
         tbHeight+= tools[i].height;
     }
-    var factor=Math.min(1,(HEIGHT-COLORBAR-tools.length*10)/tbHeight);
+    var factor=Math.min(1,(HEIGHT-tools.length*2)/tbHeight);
     for(var i=0;i<tools.length;i++){
         var tool=tools[i];
         var fHeight = tool.height * factor;
@@ -442,10 +428,8 @@ function drawBar(){
             ctx.drawImage(images[tool.image],WIDTH-TOOLBAR+5+(TOOLBAR-fHeight)/2, h0+5, fHeight-10, fHeight-10);
         }
         tool.currentHeight = fHeight;
-        h0+=fHeight+5;
+        h0+=fHeight;
     }
-    ctx.restore();
-    restoreClip();
 }
 
 function getImage(){
@@ -512,7 +496,7 @@ function setRadius(ev,rad){
 function unDo(){
     var last=log.pop();
     console.log("undo",last);
-    while (last && last[0][0]!='drawPoint'){
+    while (last && last[0][0]!='drawPoint' && last[0][0]!='drawStamp'){
         last=log.pop();
         console.log("undo",last);
     }
@@ -534,6 +518,7 @@ function getStamp(stamp){
 }
 
 function drawStamp(x,y){
+    console.log("Stamp",stamp);
     var c=getStamp(stamp);
     ctx.drawImage(c,x-radius*2,y-radius*2,radius*4,radius*4);
     document.body.removeChild(c);
@@ -564,7 +549,11 @@ function reDraw(dt){
             var func=log1[index1][0];
             var p1=log1[index1][1];
             var p2=log1[index1][2];
-            setTimeout(window[func],t,p1,p2);
+            if (t>0){
+                setTimeout(window[func],t,p1,p2);
+            }else{
+                window[func](p1,p2);
+            }
             t+=dt;
         }
         if (!isPlaying){
@@ -574,11 +563,15 @@ function reDraw(dt){
     if (dt>0){
         t+=100;
     }
-    setTimeout(function(){ 
+    if (t>0){
+        setTimeout(function(){ 
+            log=dlog;
+            isPlaying = false;
+        } ,t);    
+    }else{
         log=dlog;
         isPlaying = false;
-        drawBar();
-    } ,t);
+    }
 }
 
 function fillRoundedRect(x, y, w, h, r){
@@ -612,11 +605,13 @@ function resizeCanvas(){
     if (document.body.clientHeight && document.body.clientWidth){
         WIDTH = document.body.clientWidth;
         HEIGHT = document.body.clientHeight ;
-        dx=WIDTH/ncol;
+        dx=(WIDTH-TOOLBAR)/ncol;
         console.log("resize to",WIDTH,HEIGHT)
     }
     canvas.setAttribute("width",WIDTH);
     canvas.setAttribute("height",HEIGHT);    
+    canvas2.setAttribute("width",WIDTH);
+    canvas2.setAttribute("height",HEIGHT);    
 }
 
 resizeCanvas();
