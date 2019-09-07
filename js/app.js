@@ -157,7 +157,7 @@ var tools=[
     {
         image: 'play',
         height: 60,
-        onclick: function(){ reDraw(10) },
+        onclick: function(){ reDraw(8) },
         hint: 'Redo wrawing'
     }
 ]
@@ -495,7 +495,7 @@ function setRadius(ev,rad){
 
 function unDo(){
     var last=log.pop();
-    console.log("undo",last);
+    //console.log("undo",last);
     while (last && last[0][0]!='drawPoint' && last[0][0]!='drawStamp'){
         last=log.pop();
         console.log("undo",last);
