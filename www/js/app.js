@@ -74,7 +74,7 @@ var colorList=[
     "fff"
 ];
 var ncol=colorList.length;
-var dx=(WIDTH-TOOLBAR)/ncol;
+var dx=(WIDTH)/ncol;
 var imageCount = 0;
 var stampTool = null;
 var radius=8;
@@ -127,25 +127,25 @@ var tools=[
     {
         radius: 4, 
         height: 60,
-        onclick: function(){ setRadius(null,this.radius) },
+        onclick: function(){ setRadius(4) },
         background: '#ddd'
     },
     {
         radius: 8, 
         height: 60,
-        onclick: function(){ setRadius(null,this.radius) },
+        onclick: function(){ setRadius(8) },
         background: '#ddd'
     },
     {
         radius: 16, 
         height: 60,
-        onclick: function(){ setRadius(null,this.radius) },
+        onclick: function(){ setRadius(16) },
         background: '#ddd'
     },
     {
         radius: 32, 
         height: 60,
-        onclick: function(){ setRadius(null,this.radius) },
+        onclick: function(){ setRadius(32) },
         background: '#ddd'
     },
     {
@@ -171,10 +171,63 @@ if (!window.cordova){
     })
 }
 
+var toolbar = document.getElementById('toolbar');
 
-for(var i=0;i<tools.length;i++){
-    if (tools[i].hint=='Stamp'){
-        stampTool = tools[i]
+function drawToolbar(){
+    console.log("drawToolbar",stamp);
+    toolbar.innerHTML="";
+    for(var i=0;i<tools.length;i++){
+        var tool=tools[i];
+        var div = document.createElement('div');
+        div.className = "tool";
+        div.style.cursor = "pointer";
+        if (tool.image){
+            var img = images[tool.image];
+            if (tool.hint=='Stamp'){
+                div.style.backgroundImage = "url("+images[stamp].src+")";
+            } else {
+                div.style.backgroundImage = "url("+img.src+")";
+            }
+        }
+        if (tool.radius){
+            var dot = document.createElement('div');
+            dot.className = "dot";
+            dot.style.width = tool.radius+"px";
+            dot.style.height = tool.radius+"px";
+            if (tool.radius==radius){
+                div.setAttribute('selected',1)
+            }
+            var stm = images[stamp];
+            if (stm){
+                dot.style.backgroundImage = "url("+stm.src+")";
+                dot.style.backgroundSize = "contain";
+            } else {
+                dot.style.backgroundColor = color;
+                dot.style.borderRadius = "50%";
+            }
+            div.appendChild(dot);
+        }
+        if (tool.hint=='Stamp'){
+            stampTool = div
+        }
+        div.setAttribute('index',i);
+        var listener = function(ev){
+            var idx = ev.target.getAttribute('index') * 1;
+            console.log('tool',idx,tools[idx]);
+            ev.preventDefault();
+            if (ev.stopPropagation){
+                ev.stopPropagation();
+            } else {
+                ev.cancelBubble = true;
+            }
+            tools[idx].onclick(ev);
+            setTimeout(function(){
+                
+            },500);
+        }
+        div.addEventListener('mousedown', listener);
+        toolbar.appendChild(div);
+        tool.div = div;
     }
 }
 
@@ -260,7 +313,7 @@ function translatedY(y){
 function pointerStart(x,y){
     var tx = translatedX(x);
     var ty = translatedY(y)
-    if (tx>WIDTH-TOOLBAR){
+    if (tx>WIDTH){
         for(var i=0;i<tools.length;i++){
             var tool=tools[i];
             if (tool.x0<=ty && tool.x0+tool.currentHeight>ty){
@@ -291,6 +344,7 @@ function setColor(col){
     currentLog=[];
     currentLog.push(['setColor',col]);
     log.push(currentLog);
+    drawToolbar();
     drawBar();
 }
 
@@ -395,46 +449,13 @@ function drawBar(){
     }
 
     ctx.fillStyle = "#ddd";
-    ctx.fillRect(WIDTH-TOOLBAR,0,TOOLBAR,HEIGHT);
+    ctx.fillRect(WIDTH,0,TOOLBAR,HEIGHT);
     var h0 = 10;
-    var tbHeight =0;
-    for(var i=0;i<tools.length;i++){
-        tbHeight+= tools[i].height;
-    }
-    var factor=Math.min(1,(HEIGHT-tools.length*2)/tbHeight);
-    for(var i=0;i<tools.length;i++){
-        var tool=tools[i];
-        var fHeight = tool.height * factor;
-        ctx.fillStyle = tool.background ? tool.background : "#fff";
-        if (radius == tool.radius){
-            ctx.fillStyle = "#ccc";
-            ctx.fillRect(WIDTH-TOOLBAR + 3,h0,TOOLBAR-6,fHeight);
-            ctx.fillStyle = "#eee";
-        }
-        ctx.fillRect(WIDTH-TOOLBAR + 5,h0+2,TOOLBAR-10,fHeight-4);
-        tool.x0 = h0;
-        if (tool.radius){
-            var cv = getStamp(stamp);
-            ctx.drawImage(cv, WIDTH-TOOLBAR/2-tool.radius*factor, h0 + fHeight/2-tool.radius*factor , tool.radius*2*factor, tool.radius*2*factor);
-            document.body.removeChild(cv);
-        }
-        if (tool.text){
-            ctx.fillStyle = "#222";
-            ctx.textAlign = "center";
-            ctx.font = "20px Arial";
-            ctx.fillText(tool.text, WIDTH-TOOLBAR/2, h0+ fHeight/2);
-        }
-        if(tool.image){
-            ctx.drawImage(images[tool.image],WIDTH-TOOLBAR+5+(TOOLBAR-fHeight)/2, h0+5, fHeight-10, fHeight-10);
-        }
-        tool.currentHeight = fHeight;
-        h0+=fHeight;
-    }
 }
 
 function getImage(){
     var new_canvas = document.createElement('canvas');
-    new_canvas.width = WIDTH-TOOLBAR;
+    new_canvas.width = WIDTH;
     new_canvas.height = HEIGHT-COLORBAR;
     new_canvas.getContext('2d').drawImage(canvas, 0,0);
     var dataUrl = new_canvas.toDataURL("image/png");
@@ -451,12 +472,12 @@ function clearWindow(){
     console.log('clear');
     setColor("#000");
     setStamp('circle');
-    setRadius(null,8);
+    setRadius(8);
     log=[];
     currentLog=[];
     ctx.fillStyle = "#eee";
     ctx.fillRect(0,0,WIDTH,HEIGHT);
-    drawBar();
+    drawToolbar();
 }
 
 function logger(msg){
@@ -475,21 +496,18 @@ function setStamp(name){
     log.push(currentLog);
     console.log("Stamp",name);
     if (stampTool){
-        stampTool.image=name;
+        stampTool.style.backgroundImage = "url("+images[name].src+")";
     }
-    drawBar();
+    drawToolbar();
 }
 
-function setRadius(ev,rad){
+function setRadius(rad){
     radius=rad;
-    if (ev){
-        ev.preventDefault();
-        ev.stopPropagation();    
-    }
     currentLog=[];
-    currentLog.push(['setRadius',null,rad]);
+    currentLog.push(['setRadius',rad]);
     log.push(currentLog);
-    console.log("Radius", rad);
+    console.log("Radius", rad, color);
+    drawToolbar();
     drawBar();
 }
 
@@ -595,7 +613,7 @@ function fillCanvas(){
 
 function fillColor(){
     ctx.fillStyle = color;
-    ctx.fillRect(0,0,WIDTH-TOOLBAR,HEIGHT-COLORBAR);
+    ctx.fillRect(0,0,WIDTH,HEIGHT-COLORBAR);
     currentLog=[];
     currentLog.push(['fillColor',null]);
     log.push(currentLog);
@@ -605,7 +623,7 @@ function resizeCanvas(){
     if (document.body.clientHeight && document.body.clientWidth){
         WIDTH = document.body.clientWidth;
         HEIGHT = document.body.clientHeight ;
-        dx=(WIDTH-TOOLBAR)/ncol;
+        dx=(WIDTH)/ncol;
         console.log("resize to",WIDTH,HEIGHT)
     }
     canvas.setAttribute("width",WIDTH);
@@ -631,6 +649,8 @@ window.onresize=function(ev){
         reDraw(0);    
     },300);
 }
+
+drawToolbar()
 
 document.addEventListener('deviceready',function(){
     console.log("deviceready")
